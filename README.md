@@ -10,6 +10,8 @@ Sketching is a natural way of communication for expressing a concept or an idea.
 
 ![Welcome Screen](Images/welcome_screen.PNG)
 
+![Players Screen](Images/players_screen.PNG)
+
 ![Drawing Screen](Images/drawing_screen.PNG)
 
 ![Results Screen](Images/result_screen.PNG)

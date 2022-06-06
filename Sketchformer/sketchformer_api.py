@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from Sketchformer.utils import *
 import Sketchformer.models as models
 import Sketchformer.dataloaders as dataloaders
@@ -124,5 +126,21 @@ def predict(model, batch_data):
         pred = model.predict(sketch_encoded)
         cls = pred["class"][0]
         predicted.append(obj_classes[cls])
+
+    return predicted
+
+def multi_predict(model, batch_data, k=3, conf_thold=-1):
+    predicted = []
+
+    for data in batch_data:
+        batch_predicted = []
+        sketch_encoded = tokenizer.encode(data)
+        out = model.encode_from_seq(sketch_encoded)
+
+        pred_labels = [tf.cast(val, tf.int32) for val in tf.argsort(out['class'], direction='DESCENDING', axis=-1)[0][:k]]
+        for cls in pred_labels:
+            if conf_thold < 0 or out['class'][0][cls] > conf_thold:
+                batch_predicted.append(obj_classes[cls])
+        predicted.append(batch_predicted)
 
     return predicted

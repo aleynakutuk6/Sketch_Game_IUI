@@ -10,4 +10,10 @@ __pycache__
 **/.ipynb_checkpoints
 */**/.ipynb_checkpoints
 
+TopicModeling/data/jsonl_files/*.jsonl
+TopicModeling/data/csv_files/*.csv
+
 .idea
+
+*.zip
+topic_images/

@@ -5,6 +5,8 @@ from PIL import Image, ImageTk
 from TopicModeling.model_api import *
 from Sketchformer.sketchformer_api import *
 
+import cv2
+
 root = Tk()
 root.title('Sketch Game: Why is this object here?')
 root.geometry("1000x1000")
@@ -13,10 +15,10 @@ root.attributes('-fullscreen', True)
 
 width = 1000
 height = 800
-obj_limit = 4
+obj_limit = 6
 round_counter = 0
 pred_multi_cnt = 3
-multi_conf_thold = 0.1
+multi_conf_thold = 0.15
 
 # Global variables
 drawing = False
@@ -57,7 +59,7 @@ turn_text = None
 player1_name = StringVar()
 player2_name = StringVar()
 color_list = ["green", "pink", "blue", "red", "purple", "orange", "brown", "black"]
-context_list = ["bakery", "sea", "bathroom", "school", "airport", "river", "cafe", "farm", "factory", "hospital"]
+context_list = ["bakery", "sea", "bathroom", "school", "airport", "river", "cafe", "farm", "sports", "hospital"]
 curr_context = None
 model = get_model()
 
@@ -67,7 +69,7 @@ def close_app(*args):
 def get_drawing(event):
     global stroke_drawing
     global old_coords
-    global stroke
+    global stroke, turn_text
     global my_canvas, memory_canvas_arr, color_list
     global round_counter
 
@@ -77,17 +79,31 @@ def get_drawing(event):
         x1 = old_coords[0]
         y1 = old_coords[1]
 
+        if turn_text == player1_name.get():
+            if len(memory_canvas_arr) > 1:
+                for s in memory_canvas_arr[-2]:
+                    for l in s:
+                        my_canvas.itemconfig(l, fill="black")
+        elif turn_text == player2_name.get():
+            if len(memory_canvas_arr) > 0:
+                for s in memory_canvas_arr[-1]:
+                    for l in s:
+                        my_canvas.itemconfig(l, fill="white")
+        """
         if round_counter < 2:
             line = my_canvas.create_line(x1, y1, x_cor, y_cor, fill="black", width=3)
-        else:
+        elif round_counter == 2:
             if (len(memory_canvas_arr) > 0):
                 for i in range(0, len(memory_canvas_arr)):
                     for s in memory_canvas_arr[i]:
                         my_canvas.itemconfig(s, fill=color_list[i % len(color_list)])
-
+            line = my_canvas.create_line(x1, y1, x_cor, y_cor, fill="black", width=3)
+        else:
             line = my_canvas.create_line(x1, y1, x_cor, y_cor, fill=color_list[round_counter], width=3)
-
+        """
+        line = my_canvas.create_line(x1, y1, x_cor, y_cor, fill="black", width=3)
         stroke_drawing.append(line)
+
     old_coords = [x_cor, y_cor]
     stroke.append([x_cor, y_cor, 0])
 
@@ -113,7 +129,7 @@ def end_stroke(event):
     old_coords = None
 
     canvas_arr.append(stroke_drawing)
-    memory_canvas_arr.append(stroke_drawing)
+    # memory_canvas_arr.append(stroke_drawing)
 
     stroke_drawing = []
 
@@ -134,7 +150,6 @@ def clear_canvas():
                 my_canvas.delete(s)
 
     canvas_arr = []
-    memory_canvas_arr = []
     image = []
     old_coords = None
 
@@ -172,7 +187,7 @@ def result_screen():
     global curr_context
 
     if len(simplified_sketch) != obj_limit:
-        Result = "\nWARNING!! Please draw 6 sketch objects in total. \n Keep going...\n\n\n"
+        Result = f"\nWARNING!! Please draw {obj_limit} sketch objects in total. \n Keep going...\n\n\n"
         res = Label(root, text=Result)
         res.config(font=("Courier", 13), bg="pink", height=6, padx=15, pady=10)
         res.place(relx=0.5, rely=0.5, anchor="center")
@@ -210,18 +225,21 @@ def result_screen():
             max_topic_prob = -1
             max_set_obj = None
             max_hidden_obj = None
+            max_found_img, max_found_doc = None, None
             for object_list in object_lists:
                 # remove duplicates
                 set_obj = set(object_list)
                 if len(object_list) > len(set_obj):
                     continue
 
-                hidden_obj, topic_prob, max_topic_idx, max_img = find_unrelated(object_list, curr_context)
+                hidden_obj, topic_prob, max_topic_idx, max_img, max_doc = find_unrelated(object_list, curr_context)
                 print(object_list, "-->", hidden_obj, "-", topic_prob)
                 if max_topic_prob < topic_prob:
                     max_topic_prob = topic_prob
                     max_set_obj = copy.deepcopy(object_list)
                     max_hidden_obj = hidden_obj
+                    max_found_img = max_img
+                    max_found_doc = max_doc
                     for id, h in enumerate(object_list):
                         if h == hidden_obj:
                             hidden_idx = id
@@ -249,11 +267,16 @@ You sketch the followings in order:
             no_button = Button(res, text="NO", font=("Courier", 9), width=7, fg="#336d92", command=welcome_screen)
             no_button.place(relx=0.93, rely=0.89, anchor='center')
 
-            found_image_path = 'topic_images/' + str(max_topic_idx) + "/" + max_img
+            found_image_path = 'topic_images/' + max_found_img
             print("found_image_path ", found_image_path)
+            print("found_doc ", max_found_doc)
+
+            cv2.imshow("Most Similar Image", cv2.imread(found_image_path))
+            """
             found_image = Image.open(found_image_path)
             my_canvas.create_image(0, 0, image=ImageTk.PhotoImage(found_image), anchor="nw")
             my_canvas.bind("<Configure>")
+            """
 
         else:
             Result = "\nERROR!! You did not draw anything... Why? :((((\n\n\n"
@@ -272,7 +295,6 @@ def last_canvas():
 
     if(len(canvas_arr) > 0):
         last_stroke = canvas_arr.pop()
-        dummy = memory_canvas_arr.pop()
         for s in last_stroke:
             my_canvas.delete(s)
 
@@ -282,20 +304,22 @@ def last_canvas():
 def keep_next_object():
     global simplified_sketch
     global image, my_canvas
-    global canvas_arr, res
+    global canvas_arr, res, memory_canvas_arr
     global turn_label
-    global turn_text, memory_canvas_arr
+    global turn_text
     global obj_limit, round_counter
 
     simplification()
-
+    """
     if round_counter < 2:
         if (len(canvas_arr) > 0):
             for i in range(0, len(canvas_arr)):
                 for s in canvas_arr[i]:
                     my_canvas.itemconfig(s, fill='white')
+    """
 
-    round_counter += 1
+    memory_canvas_arr.append(canvas_arr)
+    # round_counter += 1
     image = []
     canvas_arr = []
 
@@ -309,6 +333,17 @@ def keep_next_object():
         bg = "#B86CB5"
         turn_label.config(text="Your Turn: " + turn_text, bg=bg)
         turn_label.place(relx=0.15, rely=0.04, anchor="nw")
+
+    if turn_text == player1_name.get():
+        if len(memory_canvas_arr) > 1:
+            for s in memory_canvas_arr[-2]:
+                for l in s:
+                    my_canvas.itemconfig(l, fill="black")
+    elif turn_text == player2_name.get():
+        if len(memory_canvas_arr) > 0:
+            for s in memory_canvas_arr[-1]:
+                for l in s:
+                    my_canvas.itemconfig(l, fill="white")
 
     if len(simplified_sketch) == obj_limit:
         result_screen()

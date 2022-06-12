@@ -18,7 +18,7 @@ topic_list = []
 for tidx, topic in enumerate(docs_data.keys()):
     print("Processing topic:", tidx+1, "/", len(docs_data.keys()), "| Out of", len(docs_data[topic]), "documents.")
     topic_list.append(topic)
-    ctr = min(100, len(docs_data[topic]) // 2)
+    ctr = min(10000, len(docs_data[topic]) // 2)
     failed = 0
     selected_docs_per_topic = []
     while ctr > 0:

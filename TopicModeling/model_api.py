@@ -5,8 +5,9 @@ from nltk.stem.porter import PorterStemmer
 
 porter = PorterStemmer()
 main_path = 'C:/Users/aleyn/OneDrive/Masaüstü/COMP537-IUI/IUI_Project_SketchGame/Sketch_Game_IUI/TopicModeling/'
-topic_word = np.load(main_path + 'data/topic_word_ALL_OLD.npy')
+topic_word = np.load(main_path + 'data/topic_word_WITH_CONTEXT.npy')
 quickdraw_classes = []
+context_list = ["bakery", "sea", "bathroom", "school", "airport", "river", "cafe", "farm", "sports", "hospital"]
 
 f = open(main_path + 'data/topic_img_mapping.json')
 topic_img_mapping = json.load(f)
@@ -17,9 +18,11 @@ max_img = None
 with open("C:/Users/aleyn/OneDrive/Masaüstü/COMP537-IUI/IUI_Project_SketchGame/Sketch_Game_IUI/Sketchformer/prep_data/quickdraw/list_quickdraw.txt") as file:
     quickdraw_classes = file.readlines()
 
+quickdraw_classes = [c.replace("\n", "").strip() for c in quickdraw_classes]
+
 quickdraw_dict = {}
-for idx, cls in enumerate(quickdraw_classes):
-    quickdraw_dict[cls[:-1]] = idx
+for idx, cls in enumerate(quickdraw_classes + context_list):
+    quickdraw_dict[cls] = idx
 
 
 def find_unrelated(sketch_list, curr_context):
@@ -32,7 +35,7 @@ def find_unrelated(sketch_list, curr_context):
     max_topic_subset = None
     for subset in itertools.combinations(sketch_list, len(sketch_list)-1):
         indices = []
-        for cls in subset:
+        for cls in list(subset) + [curr_context]:
             indices.append(quickdraw_dict[cls])
 
         sub_mtx = topic_word[:, indices]
@@ -47,7 +50,7 @@ def find_unrelated(sketch_list, curr_context):
             max_topic_subset = subset
 
     stemmed_subset = [porter.stem(obj) for obj in max_topic_subset]
-    print("max_topic_subset ", max_topic_subset)
+    # print("max_topic_subset ", max_topic_subset)
     max_doc, max_img, max_ctr = None, None, -1
     for doc, img_pth in topic_img_mapping[str(max_topic_idx)]:
         ctr = 0
@@ -59,8 +62,8 @@ def find_unrelated(sketch_list, curr_context):
             max_img = img_pth
             max_ctr = ctr
 
-    print("Doc:", max_doc)
-    print("Image:", str(max_topic_idx) + "/" + max_img)
+    # print("Doc:", max_doc)
+    # print("Image:", str(max_topic_idx) + "/" + max_img)
 
     """
     rand_docs = random.sample(topic_img_mapping[str(max_topic_idx)], 3)
@@ -72,6 +75,6 @@ def find_unrelated(sketch_list, curr_context):
 
     for sketch in sketch_list:
         if sketch not in max_topic_subset:
-            return sketch, max_topic_prob, max_topic_idx, max_img
+            return sketch, max_topic_prob, max_topic_idx, max_img, max_doc
     return None, None
 

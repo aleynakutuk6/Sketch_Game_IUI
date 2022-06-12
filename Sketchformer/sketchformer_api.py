@@ -125,6 +125,7 @@ def predict(model, batch_data):
         sketch_encoded = tokenizer.encode(data)
         pred = model.predict(sketch_encoded)
         cls = pred["class"][0]
+        # print("pred embedding", pred["embedding"])
         predicted.append(obj_classes[cls])
 
     return predicted

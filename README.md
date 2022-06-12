@@ -24,4 +24,4 @@ In this project, the designed sketch game interface will return the most unrelat
 
 - **Interface:** Tkinter
 - **Classifier:** [Sketchformer](https://github.com/leosampaio/sketchformer)
-- **Topic Modeling:** TBA
+- **Topic Modeling:** [GSDMM](https://dl.acm.org/doi/10.1145/2623330.2623715)
